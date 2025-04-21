@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Encuesta Web Interactiva</title>
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --primary-hover: #3a56d4;
+      --success-color: #4cc9f0;
+      --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      --transition: all 0.3s ease;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      transition: var(--transition);
+    }
+    
+    h1 {
+      margin-bottom: 25px;
+      color: #2b2d42;
+      font-size: 1.8rem;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 12px;
+      font-weight: 600;
+      color: #4a4e69;
+      text-align: left;
+    }
+    
+    select {
+      width: 100%;
+      padding: 12px 15px;
+      margin-bottom: 25px;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+    
+    select:focus {
+      border-color: var(--primary-color);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+    }
+    
+    button {
+      display: inline-block;
+      padding: 12px 25px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: var(--shadow);
+    }
+    
+    button:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    canvas {
+      margin-top: 30px;
+      max-width: 100%;
+      height: auto !important;
+    }
+    
+    .agregar-lenguaje {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e9ecef;
+    }
+    
+    .agregar-lenguaje h3 {
+      color: #2b2d42;
+      margin-bottom: 15px;
+    }
+    
+    input[type="text"] {
+      width: calc(100% - 30px);
+      padding: 12px 15px;
+      margin-bottom: 15px;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: var(--transition);
+    }
+    
+    input[type="text"]:focus {
+      border-color: var(--primary-color);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+    }
+    
+    #agregarBtn {
+      background-color: #4cc9f0;
+    }
+    
+    #agregarBtn:hover {
+      background-color: #3ab7de;
+    }
+    
+    @media (max-width: 480px) {
+      .container {
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Encuesta: ¿Cuál es tu lenguaje de programación favorito?</h1>
+
+    <!-- Menú desplegable -->
+    <label for="lenguaje">Selecciona tu lenguaje favorito:</label>
+    <select id="lenguaje">
+      <option value="JavaScript">JavaScript</option>
+      <option value="Python">Python</option>
+      <option value="Java">Java</option>
+      <option value="C++">C++</option>
+      <option value="Ruby">Ruby</option>
+    </select>
+
+    <!-- Botón para votar -->
+    <button id="votarBtn">Votar</button>
+
+    <!-- Sección para agregar nuevos lenguajes -->
+    <div class="agregar-lenguaje">
+      <h3>Añadir nuevo lenguaje</h3>
+      <input type="text" id="nuevoLenguaje" placeholder="Escribe el nombre del lenguaje">
+      <button id="agregarBtn">Añadir</button>
+    </div>
+
+    <!-- Gráfica -->
+    <canvas id="graficaResultados"></canvas>
+  </div>
+
+  <!-- Incluimos Chart.js desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Incluimos SweetAlert2 desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Incluimos canvas-confetti para efectos -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  
+  <script>
+    // Cargar datos guardados o inicializar
+    const loadData = () => {
+      const savedData = localStorage.getItem('EncuestaLenguajes');
+      if (savedData) {
+        return JSON.parse(savedData);
+      }
+      return {
+        labels: ['JavaScript', 'Python', 'Java', 'C++', 'Ruby'],
+        data: [0, 0, 0, 0, 0],
+      };
+    };
+
+    // Guardar datos
+    const saveData = (data) => {
+      localStorage.setItem('EncuestaLenguajes', JSON.stringify(data));
+    };
+
+    // Datos iniciales para la gráfica
+    let resultados = loadData();
+
+    // Configuración de la gráfica con animaciones mejoradas
+    const ctx = document.getElementById('graficaResultados').getContext('2d');
+    let grafica = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: resultados.labels,
+        datasets: [{
+          label: 'Votos',
+          data: resultados.data,
+          backgroundColor: [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#8AC249', '#EA5F89', '#00BFFF', '#BA55D3'
+          ],
+          borderColor: [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#8AC249', '#EA5F89', '#00BFFF', '#BA55D3'
+          ],
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        animation: {
+          duration: 1000,
+          easing: 'easeOutQuart'
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            },
+            ticks: {
+              stepSize: 1
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: '#2b2d42',
+            titleFont: {
+              size: 16,
+              weight: 'bold'
+            },
+            bodyFont: {
+              size: 14
+            },
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: false
+          }
+        }
+      },
+    });
+
+    // Función para actualizar la gráfica
+    const actualizarGrafica = () => {
+      grafica.data.labels = resultados.labels;
+      grafica.data.datasets[0].data = resultados.data;
+      grafica.update();
+    };
+
+    // Función para disparar confeti
+    const shootConfetti = () => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+      });
+    };
+
+    // Evento para el botón "Votar"
+    const votarBtn = document.getElementById('votarBtn');
+    const lenguajeSelect = document.getElementById('lenguaje');
+
+    votarBtn.addEventListener('click', () => {
+      const lenguajeSeleccionado = lenguajeSelect.value;
+
+      // Incrementar el conteo del lenguaje seleccionado
+      const indice = resultados.labels.indexOf(lenguajeSeleccionado);
+      if (indice !== -1) {
+        resultados.data[indice]++;
+        
+        // Actualizar gráfica y guardar datos
+        actualizarGrafica();
+        saveData(resultados);
+        
+        shootConfetti();
+        
+        Swal.fire({
+          icon: 'success',
+          title: '¡Voto registrado!',
+          text: `Has votado por ${lenguajeSeleccionado}`,
+          showConfirmButton: false,
+          timer: 1500,
+          background: '#ffffff',
+          backdrop: `
+            rgba(0,0,0,0.4)
+            url("images/poptart1redrainbowfix_1.webp")
+            left top
+            no-repeat
+          `
+        });
+      }
+    });
+
+    // Funcionalidad para añadir nuevos lenguajes
+    const agregarBtn = document.getElementById('agregarBtn');
+    const nuevoLenguajeInput = document.getElementById('nuevoLenguaje');
+
+    agregarBtn.addEventListener('click', () => {
+      const nuevoLenguaje = nuevoLenguajeInput.value.trim();
+
+      if (nuevoLenguaje === '') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: 'Por favor ingresa un nombre válido para el lenguaje.',
+          confirmButtonColor: '#4361ee'
+        });
+        return;
+      }
+
+      if (nuevoLenguaje.length > 20) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Nombre muy largo',
+          text: 'El nombre del lenguaje no puede exceder los 20 caracteres.',
+          confirmButtonColor: '#4361ee'
+        });
+        return;
+      }
+
+      if (resultados.labels.includes(nuevoLenguaje)) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Lenguaje existente',
+          text: 'Este lenguaje ya está incluido en la encuesta.',
+          confirmButtonColor: '#4361ee'
+        });
+        return;
+      }
+
+      // Agregar el nuevo lenguaje a los datos
+      resultados.labels.push(nuevoLenguaje);
+      resultados.data.push(0);
+
+      // Actualizar el menú desplegable
+      const nuevaOpcion = document.createElement('option');
+      nuevaOpcion.value = nuevoLenguaje;
+      nuevaOpcion.textContent = nuevoLenguaje;
+      lenguajeSelect.appendChild(nuevaOpcion);
+
+      // Actualizar la gráfica y guardar datos
+      actualizarGrafica();
+      saveData(resultados);
+
+      // Limpiar el campo de entrada
+      nuevoLenguajeInput.value = '';
+
+      Swal.fire({
+        position: 'top-end',
+        icon: 'success',
+        title: `"${nuevoLenguaje}" añadido`,
+        showConfirmButton: false,
+        timer: 1500
+      });
+    });
+
+    // Efecto al cargar la página
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('.container').style.opacity = '0';
+      document.querySelector('.container').style.transform = 'translateY(20px)';
+      
+      setTimeout(() => {
+        document.querySelector('.container').style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        document.querySelector('.container').style.opacity = '1';
+        document.querySelector('.container').style.transform = 'translateY(0)';
+      }, 100);
+    });
+  </script>
+</body>
+</html>
